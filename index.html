@@ -195,7 +195,7 @@ let supplierFilter = 'all';
 
 async function init() {
   try {
-    await Promise.all([loadMasters(), loadInventory()]);
+    await Promise.all([loadMasters(), loadInventory(), loadHistory()]);
     renderDash();
     document.getElementById('list-loading').style.display = 'none';
     renderInvList(applyFilters(''));
@@ -456,7 +456,7 @@ function showScreen(id, btn) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('screen-' + id).classList.add('active');
   btn.classList.add('active');
-  if (id === 'log' && !state.history.length) loadHistory();
+  if (id === 'log' && !state.history.length) loadHistory(); // 起動時未取得の場合のみ
   if (id === 'move') hideForm();
 }
 
