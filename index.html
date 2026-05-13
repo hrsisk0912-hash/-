@@ -309,9 +309,8 @@ function showForm(type) {
   document.getElementById('move-top').style.display = 'none';
   const products = state.masters.products || [];
   const persons = state.masters.persons || [];
-  const productOpts = products.map(p =>
-    `<option value="${[p['品名'],p['SKU']||'',p['仕入先']||'',p['単位']||''].join('|')}">${p['品名']}（${p['仕入先']}）</option>`
-  ).join('');
+  const suppliers = [...new Set(products.map(p => p['仕入先']).filter(Boolean))].sort();
+  const supplierOpts = suppliers.map(s => `<option value="${s}">${s}</option>`).join('');
   const personOpts = persons.map(p => `<option value="${p}">${p}</option>`).join('');
   const cl = type === 'in' ? 'in' : 'out';
   const label = type === 'in' ? '入庫登録' : '出庫登録';
@@ -321,8 +320,10 @@ function showForm(type) {
     <div id="form-error"></div>
     <div class="form-card">
       <div class="form-type-label ${cl}">${icon} ${label}</div>
+      <div class="form-row"><div class="form-label">仕入先 *</div>
+        <select id="f-supplier-sel" onchange="onSupplierChange(this)"><option value="">選択してください</option>${supplierOpts}</select></div>
       <div class="form-row"><div class="form-label">商品 *</div>
-        <select id="f-product" onchange="onProductChange(this)"><option value="">選択してください</option>${productOpts}</select></div>
+        <select id="f-product" onchange="onProductChange(this)" disabled><option value="">仕入先を先に選択</option></select></div>
       <div class="form-row"><div class="form-label">数量 *</div>
         <input type="number" id="f-qty" placeholder="例：10" min="1" step="1"></div>
       <div class="form-row"><div class="form-label">単位</div>
@@ -336,6 +337,23 @@ function showForm(type) {
     </div>
     <button class="submit-btn ${cl}" id="submit-btn" onclick="submitForm()">${label}する</button>`;
   document.getElementById('move-form').style.display = 'block';
+}
+
+function onSupplierChange(sel) {
+  const supplier = sel.value;
+  document.getElementById('f-supplier').value = supplier;
+  const productSel = document.getElementById('f-product');
+  document.getElementById('f-sku').value = '';
+  document.getElementById('f-unit').value = '';
+  if (!supplier) {
+    productSel.innerHTML = '<option value="">仕入先を先に選択</option>';
+    productSel.disabled = true;
+    return;
+  }
+  const products = (state.masters.products || []).filter(p => p['仕入先'] === supplier);
+  productSel.innerHTML = '<option value="">選択してください</option>' +
+    products.map(p => `<option value="${[p['品名'],p['SKU']||'',p['仕入先']||'',p['単位']||''].join('|')}">${p['品名']}</option>`).join('');
+  productSel.disabled = false;
 }
 
 function onProductChange(sel) {
