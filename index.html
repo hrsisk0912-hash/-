@@ -240,7 +240,7 @@ async function loadHistory() {
   document.getElementById('log-content').style.display = 'block';
 }
 
-function getStock(item) { return Math.round(Number(item['現在庫(自動)'] || item['現在庫'] || 0) * 10) / 10; }
+function getStock(item) { const v = Number(item['現在庫(自動)'] || item['現在庫'] || 0); return Number.isInteger(v) ? v : parseFloat(v.toFixed(1)); }
 function isAlert(item) {
   const p = Number(item['発注点'] || 0);
   return item['SKU'] && p > 0 && getStock(item) <= p;
@@ -435,7 +435,7 @@ function logItemHTML(h) {
       <div class="log-meta">${type} · ${h['処理者'] || ''}${h['備考'] ? ' · ' + h['備考'] : ''}</div>
     </div>
     <div class="log-right">
-      <div class="log-qty ${dc}">${prefix}${h['数量'] || 0} ${h['単位'] || ''}</div>
+      <div class="log-qty ${dc}">${prefix}${(()=>{const v=Number(h['数量']||0);return Number.isInteger(v)?v:parseFloat(v.toFixed(1));})()}${h['単位']||''}</div>
       <div class="log-time">${fmtDate(h['日時'])}</div>
     </div>
   </div>`;
