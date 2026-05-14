@@ -240,7 +240,7 @@ async function loadHistory() {
   document.getElementById('log-content').style.display = 'block';
 }
 
-function getStock(item) { return Number(item['現在庫(自動)'] || item['現在庫'] || 0); }
+function getStock(item) { return Math.round(Number(item['現在庫(自動)'] || item['現在庫'] || 0) * 10) / 10; }
 function isAlert(item) {
   const p = Number(item['発注点'] || 0);
   return item['SKU'] && p > 0 && getStock(item) <= p;
