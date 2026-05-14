@@ -382,20 +382,21 @@ async function submitForm() {
   if (!handler) { errEl.innerHTML='<div class="error-box">処理者を選択してください</div>'; return; }
   btn.disabled = true; btn.textContent = '送信中...';
   try {
-    const body = {
+    const txType = document.getElementById('f-type').value;
+    const params = new URLSearchParams({
       action: 'addTransaction',
       name: productVal.split('|')[0],
       sku: document.getElementById('f-sku').value,
-      type: document.getElementById('f-type').value,
+      type: txType,
       qty: Number(qty),
       handler,
       supplier: document.getElementById('f-supplier').value,
       memo: document.getElementById('f-memo').value
-    };
-    const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    });
+    const r = await fetch(API + '?' + params.toString());
     const d = await r.json();
     if (d.ok) {
-      showToast(`✓ ${body.type}を記録しました`, 'success');
+      showToast(`✓ ${txType}を記録しました`, 'success');
       hideForm();
       await loadInventory();
       renderDash();
