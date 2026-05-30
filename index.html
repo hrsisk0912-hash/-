@@ -277,9 +277,7 @@ function doLogout() {
   resetState();
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('login-pass').value = '';
   document.getElementById('login-error').style.display = 'none';
-  // ナビをホームに戻す
   document.querySelectorAll('.nav-btn').forEach((b,i) => b.classList.toggle('active', i===0));
   document.querySelectorAll('.screen').forEach((s,i) => s.classList.toggle('active', i===0));
 }
