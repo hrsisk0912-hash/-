@@ -123,9 +123,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic UI'
 <div class="login-screen" id="login-screen">
   <div class="login-logo">🍱</div>
   <div class="login-title">権兵衛 在庫管理</div>
-  <div class="login-sub">店舗とパスワードを入力してください</div>
+  <div class="login-sub">店舗を選択してください</div>
   <div class="login-card">
-    <div class="login-error" id="login-error">店舗またはパスワードが正しくありません</div>
+    <div class="login-error" id="login-error">店舗を選択してください</div>
     <div class="login-label">店舗</div>
     <select class="login-select" id="login-store">
       <option value="">選択してください</option>
@@ -136,8 +136,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic UI'
       <option value="umekita">梅北店</option>
       <option value="chayamachi">茶屋町店</option>
     </select>
-    <div class="login-label">パスワード</div>
-    <input class="login-input" type="password" id="login-pass" placeholder="パスワードを入力" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="login-btn" onclick="doLogin()">ログイン</button>
   </div>
 </div>
