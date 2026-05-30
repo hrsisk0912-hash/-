@@ -252,14 +252,16 @@ let supplierFilter = 'all';
 // ===== ログイン =====
 function doLogin() {
   const storeKey = document.getElementById('login-store').value;
-  const pass = document.getElementById('login-pass').value;
   const errEl = document.getElementById('login-error');
   errEl.style.display = 'none';
 
-  if (!storeKey) { errEl.textContent = '店舗を選択してください'; errEl.style.display = 'block'; return; }
-  const store = STORES[storeKey];
-  if (!store || pass !== store.pass) { errEl.textContent = '店舗またはパスワードが正しくありません'; errEl.style.display = 'block'; return; }
+  if (!storeKey) {
+    errEl.textContent = '店舗を選択してください';
+    errEl.style.display = 'block';
+    return;
+  }
 
+  const store = STORES[storeKey];
   API = store.api;
   sessionStorage.setItem('storeKey', storeKey);
   document.getElementById('login-screen').style.display = 'none';
