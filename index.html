@@ -362,10 +362,13 @@ async function loadHistory() {
 function fmtNum(v) { const n = Number(v||0); return Number.isInteger(n) ? n : parseFloat(n.toFixed(1)); }
 function getStock(item) { return fmtNum(item['現在庫(自動)'] || item['現在庫'] || 0); }
 function isAlert(item) {
-  const p = Number(item['発注点']||0);
-  if (!item['SKU'] || p <= 0) return false;
+  const p = item['発注点'];
+  if (!item['SKU'] || p === '' || p == null) return false;
+  const point = Number(p);
+  const stock = getStock(item);
+  const cond = state.masters.compareCondition || '以下';
   if (item['発注済み'] === true) return false;
-  return getStock(item) <= p;
+  return cond === '未満' ? stock < point : stock <= point;
 }
 
 function renderDash() {
