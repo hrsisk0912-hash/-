@@ -359,7 +359,7 @@ async function loadHistory() {
 }
 
 // ===== 表示 =====
-function fmtNum(v) { const n = Number(v||0); return Number.isInteger(n) ? n : parseFloat(n.toFixed(1)); }
+function fmtNum(v) { const n = Number(v||0); return Number.isInteger(n) ? n : parseFloat(n.toFixed(2)); }
 function getStock(item) { return fmtNum(item['現在庫(自動)'] || item['現在庫'] || 0); }
 function isAlert(item) {
   const p = item['発注点'];
