@@ -118,6 +118,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic UI'
 .toast.show{opacity:1;}
 .error-box{background:var(--red-light);border:1px solid #F09595;border-radius:var(--radius);padding:12px;font-size:13px;color:var(--red);margin-bottom:12px;}
 .empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:14px;}
+.block-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-bottom:10px;}
+.block-head{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+.block-supplier{flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:var(--white);color:var(--text);outline:none;appearance:none;-webkit-appearance:none;}
+.block-del{width:36px;height:36px;border:1px solid var(--border);border-radius:var(--radius-sm);background:none;color:var(--text3);font-size:14px;cursor:pointer;}
+.block-filter{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;margin-bottom:4px;outline:none;}
+.prod-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--bg);}
+.prod-info{flex:1;min-width:0;}
+.prod-name{font-size:13px;font-weight:500;}
+.prod-meta{font-size:11px;color:var(--text3);margin-top:1px;}
+.prod-qty{width:80px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);text-align:right;font-size:15px;outline:none;}
+.prod-qty:focus{border-color:var(--green);}
+.prod-unit{width:30px;font-size:11px;color:var(--text3);}
+.add-block-btn{width:100%;padding:12px;border:1px dashed var(--green);background:none;color:var(--green);border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;margin-bottom:10px;}
+.batch-summary{text-align:center;font-size:12px;color:var(--text2);margin-bottom:8px;}
 </style>
 </head>
 <body>
@@ -426,58 +440,143 @@ function renderInvList(items) {
   document.getElementById('inv-list').innerHTML = items.length ? items.map(i => itemCardHTML(i,false)).join('') : '<div class="empty">該当商品なし</div>';
 }
 
-// ===== 入出庫 =====
+// ===== 入出庫（まとめて登録） =====
+let batchType = '';
+let batchRequestId = '';
+let blockSeq = 0;
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 function showForm(type) {
   document.getElementById('move-top').style.display = 'none';
   const products = state.masters.products || [];
   const persons = state.masters.persons || [];
-  const suppliers = [...new Set(products.map(p => p['仕入先']).filter(Boolean))].sort();
-  const supplierOpts = suppliers.map(s => `<option value="${s}">${s}</option>`).join('');
-  const personOpts = persons.map(p => `<option value="${p}">${p}</option>`).join('');
-  const cl = type==='in'?'in':'out', label = type==='in'?'入庫登録':'出庫登録', icon = type==='in'?'📥':'📤';
-  document.getElementById('move-form').innerHTML = `
+  const wrap = document.getElementById('move-form');
+
+  if (!products.length) {
+    wrap.innerHTML = '<button class="back-btn" onclick="hideForm()">← 戻る</button><div class="error-box">商品マスタを取得できていません。「↻ 同期」を押してからやり直してください。</div>';
+    wrap.style.display = 'block';
+    return;
+  }
+
+  batchType = type === 'in' ? '入庫' : '出庫';
+  batchRequestId = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  blockSeq = 0;
+
+  const cl = type === 'in' ? 'in' : 'out';
+  const label = type === 'in' ? '入庫登録' : '出庫登録';
+  const icon = type === 'in' ? '📥' : '📤';
+  const personOpts = persons.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+
+  wrap.innerHTML = `
     <button class="back-btn" onclick="hideForm()">← 戻る</button>
     <div id="form-error"></div>
     <div class="form-card">
-      <div class="form-type-label ${cl}">${icon} ${label}</div>
-      <div class="form-row"><div class="form-label">仕入先 *</div>
-        <select id="f-supplier-sel" onchange="onSupplierChange(this)"><option value="">選択してください</option>${supplierOpts}</select></div>
-      <div class="form-row"><div class="form-label">商品 *</div>
-        <select id="f-product" onchange="onProductChange(this)" disabled><option value="">仕入先を先に選択</option></select></div>
-      <div class="form-row"><div class="form-label">数量 *</div>
-        <input type="number" id="f-qty" placeholder="例：10" min="0.1" step="0.1"></div>
-      <div class="form-row"><div class="form-label">単位</div>
-        <input type="text" id="f-unit" readonly style="background:#f8f7f4;color:#888;"></div>
+      <div class="form-type-label ${cl}">${icon} ${label}（まとめて登録）</div>
       <div class="form-row"><div class="form-label">処理者 *</div>
         <select id="f-handler"><option value="">選択してください</option>${personOpts}</select></div>
-      <div class="form-row"><div class="form-label">備考（任意）</div>
+      <div class="form-row" style="margin-bottom:0;"><div class="form-label">備考（任意・全件共通）</div>
         <input type="text" id="f-memo" placeholder="ロット番号・理由など"></div>
-      <input type="hidden" id="f-sku"><input type="hidden" id="f-supplier">
-      <input type="hidden" id="f-type" value="${type==='in'?'入庫':'出庫'}">
     </div>
-    <button class="submit-btn ${cl}" id="submit-btn" onclick="submitForm()">${label}する</button>`;
-  document.getElementById('move-form').style.display = 'block';
+    <div id="blocks"></div>
+    <button class="add-block-btn" onclick="addBlock()">＋ 仕入先を追加</button>
+    <div class="batch-summary" id="batch-summary">入力なし</div>
+    <button class="submit-btn ${cl}" id="submit-btn" onclick="submitBatch()">${label}する</button>`;
+  wrap.style.display = 'block';
+  addBlock();
 }
 
-function onSupplierChange(sel) {
+function getUsedSuppliers() {
+  return Array.from(document.querySelectorAll('.block-supplier')).map(s => s.value).filter(Boolean);
+}
+
+function addBlock() {
+  const id = ++blockSeq;
+  const used = getUsedSuppliers();
+  const suppliers = [...new Set((state.masters.products || []).map(p => p['仕入先']).filter(Boolean))]
+    .sort().filter(s => !used.includes(s));
+  if (!suppliers.length) { showToast('追加できる仕入先がありません', 'error'); return; }
+  const opts = suppliers.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  const div = document.createElement('div');
+  div.className = 'block-card';
+  div.id = 'block-' + id;
+  div.innerHTML = `
+    <div class="block-head">
+      <select class="block-supplier" onchange="onBlockSupplier(${id},this)"><option value="">仕入先を選択</option>${opts}</select>
+      <button class="block-del" onclick="removeBlock(${id})">✕</button>
+    </div>
+    <div id="block-body-${id}"></div>`;
+  document.getElementById('blocks').appendChild(div);
+}
+
+function removeBlock(id) {
+  const el = document.getElementById('block-' + id);
+  if (el) el.remove();
+  updateSummary();
+}
+
+function onBlockSupplier(id, sel) {
   const supplier = sel.value;
-  document.getElementById('f-supplier').value = supplier;
-  const productSel = document.getElementById('f-product');
-  document.getElementById('f-sku').value = '';
-  document.getElementById('f-unit').value = '';
-  if (!supplier) { productSel.innerHTML = '<option value="">仕入先を先に選択</option>'; productSel.disabled = true; return; }
-  const products = (state.masters.products||[]).filter(p => p['仕入先']===supplier);
-  productSel.innerHTML = '<option value="">選択してください</option>' +
-    products.map(p => `<option value="${[p['品名'],p['SKU']||'',p['仕入先']||'',p['単位']||''].join('|')}">${p['品名']}</option>`).join('');
-  productSel.disabled = false;
+  const body = document.getElementById('block-body-' + id);
+  if (!supplier) { body.innerHTML = ''; updateSummary(); return; }
+
+  if (getUsedSuppliers().filter(s => s === supplier).length > 1) {
+    sel.value = '';
+    body.innerHTML = '';
+    showToast('その仕入先はすでに追加されています', 'error');
+    return;
+  }
+
+  const stockBySku = {};
+  (state.inventory || []).forEach(i => { if (i['SKU']) stockBySku[i['SKU']] = i; });
+
+  const products = (state.masters.products || []).filter(p => p['仕入先'] === supplier);
+  body.innerHTML =
+    `<input class="block-filter" type="search" placeholder="商品を絞り込み..." oninput="filterBlock(${id},this.value)">` +
+    products.map(p => {
+      const sku = p['SKU'] || '';
+      const unit = p['単位'] || '';
+      const inv = stockBySku[sku];
+      const stockTxt = inv ? `在庫 ${getStock(inv)}${esc(unit)}` : '';
+      return `<div class="prod-row" data-q="${esc(String(p['品名'] || '').toLowerCase())}">
+        <div class="prod-info"><div class="prod-name">${esc(p['品名'])}</div><div class="prod-meta">${stockTxt}</div></div>
+        <input class="prod-qty" type="number" inputmode="decimal" step="any" min="0" placeholder="0"
+          data-name="${esc(p['品名'])}" data-sku="${esc(sku)}" data-supplier="${esc(supplier)}" oninput="updateSummary()">
+        <span class="prod-unit">${esc(unit)}</span>
+      </div>`;
+    }).join('');
+  updateSummary();
 }
 
-function onProductChange(sel) {
-  if (!sel.value) return;
-  const p = sel.value.split('|');
-  document.getElementById('f-sku').value = p[1]||'';
-  document.getElementById('f-supplier').value = p[2]||'';
-  document.getElementById('f-unit').value = p[3]||'';
+function filterBlock(id, q) {
+  const key = String(q || '').trim().toLowerCase();
+  document.querySelectorAll(`#block-body-${id} .prod-row`).forEach(row => {
+    row.style.display = (!key || row.dataset.q.includes(key)) ? '' : 'none';
+  });
+}
+
+function collectItems() {
+  const items = [];
+  let bad = false;
+  document.querySelectorAll('.prod-qty').forEach(inp => {
+    const raw = inp.value.trim();
+    if (raw === '') return;
+    const v = Number(raw);
+    if (isNaN(v) || v < 0) { bad = true; return; }
+    if (v === 0) return;
+    items.push({ name: inp.dataset.name, sku: inp.dataset.sku, supplier: inp.dataset.supplier, qty: v });
+  });
+  return { items, bad };
+}
+
+function updateSummary() {
+  const { items } = collectItems();
+  const el = document.getElementById('batch-summary');
+  if (!el) return;
+  const sup = new Set(items.map(i => i.supplier)).size;
+  el.textContent = items.length ? `${sup}仕入先・${items.length}商品を${batchType}します` : '入力なし';
 }
 
 function hideForm() {
@@ -486,102 +585,52 @@ function hideForm() {
   document.getElementById('move-form').innerHTML = '';
 }
 
-async function submitForm() {
+async function submitBatch() {
   const btn = document.getElementById('submit-btn');
   const errEl = document.getElementById('form-error');
   errEl.innerHTML = '';
-  const productVal = document.getElementById('f-product').value;
-  const qty = document.getElementById('f-qty').value;
+
   const handler = document.getElementById('f-handler').value;
-  if (!productVal) { errEl.innerHTML='<div class="error-box">商品を選択してください</div>'; return; }
-  if (!qty || Number(qty) <= 0) { errEl.innerHTML='<div class="error-box">数量を正しく入力してください</div>'; return; }
-  if (!handler) { errEl.innerHTML='<div class="error-box">処理者を選択してください</div>'; return; }
+  if (!handler) { errEl.innerHTML = '<div class="error-box">処理者を選択してください</div>'; return; }
+
+  const { items, bad } = collectItems();
+  if (bad) { errEl.innerHTML = '<div class="error-box">数量に正しくない値があります</div>'; return; }
+  if (!items.length) { errEl.innerHTML = '<div class="error-box">数量を入力した商品がありません</div>'; return; }
+
+  const supCount = new Set(items.map(i => i.supplier)).size;
+  if (!confirm(`${batchType}を ${supCount}仕入先・${items.length}商品 登録します。よろしいですか？`)) return;
+
   btn.disabled = true; btn.textContent = '送信中...';
   try {
-    const txType = document.getElementById('f-type').value;
-    const params = new URLSearchParams({
-      action: 'addTransaction',
-      name: productVal.split('|')[0],
-      sku: document.getElementById('f-sku').value,
-      type: txType,
-      qty: Number(qty),
+    const payload = {
+      action: 'addTransactions',
+      requestId: batchRequestId,
+      type: batchType,
       handler,
-      supplier: document.getElementById('f-supplier').value,
-      memo: document.getElementById('f-memo').value
+      memo: document.getElementById('f-memo').value,
+      items
+    };
+    // text/plain で送る（preflightを避けてGASに届かせるため）
+    const r = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
     });
-    const r = await fetch(API + '?' + params.toString());
     const d = await r.json();
     if (d.ok) {
-      showToast(`✓ ${txType}を記録しました`, 'success');
+      showToast(`✓ ${batchType} ${items.length}件を記録しました`, 'success');
       hideForm();
       await loadInventory();
       renderDash();
       renderInvList(applyFilters(document.getElementById('search-input').value));
     } else {
-      errEl.innerHTML = `<div class="error-box">エラー: ${d.error}</div>`;
+      errEl.innerHTML = `<div class="error-box">エラー: ${esc(d.error)}</div>`;
       btn.disabled = false; btn.textContent = '再送信';
     }
-  } catch(e) {
-    errEl.innerHTML = '<div class="error-box">通信エラーが発生しました</div>';
+  } catch (e) {
+    errEl.innerHTML = '<div class="error-box">通信エラーが発生しました。登録済みの可能性があります。そのまま「再送信」しても二重登録にはなりません。</div>';
     btn.disabled = false; btn.textContent = '再送信';
   }
-}
-
-// ===== 履歴 =====
-function filterLog(type, btn) {
-  logFilter = type;
-  document.querySelectorAll('#screen-log .filter-tab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  const f = type==='all' ? state.history : state.history.filter(h => h['種別']===type);
-  document.getElementById('log-list').innerHTML = f.length ? f.map(h => logItemHTML(h)).join('') : '<div class="empty">該当する履歴がありません</div>';
-}
-
-function renderLogList(history) {
-  const f = logFilter==='all' ? history : history.filter(h => h['種別']===logFilter);
-  document.getElementById('log-list').innerHTML = f.length ? f.map(h => logItemHTML(h)).join('') : '<div class="empty">履歴がありません</div>';
-}
-
-function logItemHTML(h) {
-  const type = h['種別']||'';
-  const dc = type==='入庫'?'in':type==='出庫'?'out':'adj';
-  const prefix = type==='入庫'?'+':type==='出庫'?'-':'±';
-  return `<div class="log-item">
-    <div class="log-dot ${dc}"></div>
-    <div class="log-info">
-      <div class="log-name">${h['品名']||''}</div>
-      <div class="log-meta">${type} · ${h['処理者']||''}${h['備考']?' · '+h['備考']:''}</div>
-    </div>
-    <div class="log-right">
-      <div class="log-qty ${dc}">${prefix}${fmtNum(h['数量'])} ${h['単位']||''}</div>
-      <div class="log-time">${fmtDate(h['日時'])}</div>
-    </div>
-  </div>`;
-}
-
-function fmtDate(str) {
-  if (!str) return '';
-  const d = new Date(String(str).replace(/\//g,'-'));
-  if (isNaN(d)) return str;
-  const now = new Date(), diff = now - d;
-  const hm = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-  if (diff < 86400000) return `今日 ${hm}`;
-  if (diff < 172800000) return `昨日 ${hm}`;
-  return `${d.getMonth()+1}/${d.getDate()} ${hm}`;
-}
-
-function showScreen(id, btn) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('screen-'+id).classList.add('active');
-  btn.classList.add('active');
-  if (id==='log' && !state.history.length) loadHistory();
-  if (id==='move') hideForm();
-}
-
-function showToast(msg, type) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = `toast ${type} show`;
-  setTimeout(() => t.classList.remove('show'), 2500);
 }
 </script>
 </body>
